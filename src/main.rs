@@ -25,7 +25,7 @@ fn main() {
     // Define compositor and create a surface
     let compositor = global_manager
         .instantiate_exact::<wl_compositor::WlCompositor>(1)
-        .expect("Could not define compositor");
+        .unwrap();
     let surface = compositor.create_surface();
 
     // TODO:
@@ -61,21 +61,20 @@ fn main() {
         .instantiate_exact::<xdg_wm_base::XdgWmBase>(1)
         .expect("Could not create shell");
     let shell_surface = shell.get_xdg_surface(&surface);
+    shell_surface.get_toplevel();
+    surface.commit();
 
     // Configure shell surface
-    shell_surface.quick_assign(|shell_surface, event, _| match event {
+    shell_surface.quick_assign(move |shell_surface, event, _| match event {
         xdg_surface::Event::Configure { serial } => {
-            println!("serial: {}", serial);
             shell_surface.ack_configure(serial);
+
+            // Set our surface as top level and define its contents
+            surface.attach(Some(&buffer), 0, 0);
+            surface.commit();
         }
         _ => unreachable!(),
     });
-    surface.commit();
-
-    // Set our surface as top level and define its contents
-    shell_surface.get_toplevel();
-    surface.attach(Some(&buffer), 0, 0);
-    surface.commit();
 
     // Sync wl globals
     event_queue
